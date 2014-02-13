@@ -130,33 +130,6 @@ func (j *JSON) MaybeInt64() (int64, error) {
 	return -1, errors.New("type assertion to numeric failed")
 }
 
-func (j *JSON) Int(args ...int) int {
-	var def int
-
-	switch len(args) {
-	case 0:
-	case 1:
-		def = args[0]
-	default:
-		log.Panicf("Int() received too many arguments %d", len(args))
-	}
-
-	i, err := j.MaybeInt()
-	if err == nil {
-		return i
-	}
-
-	return def
-}
-
-// MaybeInt64 type asserts and parses an `int64`
-func (j *JSON) MaybeInt() (int, error) {
-	if n, ok := (j.Root).(numeric); ok {
-		return n.Int()
-	}
-	return -1, errors.New("type assertion to numeric failed")
-}
-
 func (j *JSON) Array(args ...*[]interface{}) *[]interface{} {
 	var def *[]interface{}
 

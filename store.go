@@ -44,6 +44,10 @@ func (n numeric) Int64() (int64, error) {
 	return strconv.ParseInt(string(n), 10, 64)
 }
 
+func (n numeric) Int() (int, error) {
+	return strconv.ParseInt(string(n), 10, 0)
+}
+
 func (n numeric) Float64() (float64, error) {
 	return strconv.ParseFloat(string(n), 64)
 }

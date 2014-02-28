@@ -11,6 +11,9 @@ type JSON struct {
 
 func NewFromBytes(data []byte) (*JSON, error) {
 	j := &JSON{}
+	if len(data) < 2 { // Need at least "{}"
+		return nil, errors.New("no data passed in")
+	}
 	dec := NewDecoder(simpleStore{}, data)
 	root, err := dec.Decode()
 	if err != nil {

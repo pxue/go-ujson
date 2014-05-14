@@ -6,21 +6,34 @@ import (
 )
 
 type JSON struct {
-	Root interface{}
+	Root     interface{}
+	mapItems []*MapItem
 }
 
-func NewFromBytes(data []byte) (*JSON, error) {
+func NewFromBytes(data []byte, pool *MapPool) (*JSON, error) {
 	j := &JSON{}
 	if len(data) < 2 { // Need at least "{}"
 		return nil, errors.New("no data passed in")
 	}
-	dec := NewDecoder(simpleStore{}, data)
-	root, err := dec.Decode()
+	dec := NewDecoder(simpleStore{}, pool, data)
+	root, items, err := dec.Decode()
 	if err != nil {
 		return nil, err
 	}
 	j.Root = root
+	j.mapItems = items
 	return j, nil
+}
+
+func (j *JSON) Done() error {
+	var err error
+	for _, item := range j.mapItems {
+		if err = item.Close(); err != nil {
+			return err
+		}
+	}
+	j.mapItems = nil
+	return nil
 }
 
 // Get returns a pointer to a new `Json` object
@@ -32,10 +45,10 @@ func (j *JSON) Get(key string) *JSON {
 	m, err := j.MaybeMap()
 	if err == nil {
 		if val, ok := m[key]; ok {
-			return &JSON{val}
+			return &JSON{val, j.mapItems}
 		}
 	}
-	return &JSON{nil}
+	return &JSON{nil, j.mapItems}
 }
 
 // Map guarantees the return of a `map[string]interface{}` (with optional default)

@@ -30,10 +30,11 @@ func (s simpleStore) ArrayAddItem(ai interface{}, v interface{}) error {
 	return nil
 }
 
-func (s simpleStore) NewString(b []byte) (interface{}, error) {
+/*func (s simpleStore) NewString(b []byte) (interface{}, error) {*/
+func (s simpleStore) NewString(b []byte) (string, error) {
 	str, ok := unquote(b)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("failed to unquote string %s", b))
+		return "", errors.New(fmt.Sprintf("failed to unquote string %s", b))
 	}
 	return str, nil
 }
@@ -48,7 +49,7 @@ func (n numeric) Float64() (float64, error) {
 	return strconv.ParseFloat(string(n), 64)
 }
 
-func (s simpleStore) NewNumeric(b []byte) (interface{}, error) {
+func (s simpleStore) NewNumeric(b []byte) (numeric, error) {
 	return numeric(b), nil
 }
 

@@ -21,8 +21,8 @@ type ObjectStore interface {
 	NewArray() (interface{}, error)
 	ObjectAddKey(interface{}, interface{}, interface{}) error
 	ArrayAddItem(interface{}, interface{}) error
-	NewString([]byte) (interface{}, error)
-	NewNumeric([]byte) (interface{}, error)
+	NewString([]byte) (string, error)
+	NewNumeric([]byte) (numeric, error)
 	NewTrue() (interface{}, error)
 	NewFalse() (interface{}, error)
 	NewNull() (interface{}, error)
@@ -30,22 +30,26 @@ type ObjectStore interface {
 
 type Decoder struct {
 	store      ObjectStore
+	pool       *MapPool
+	checked    []*MapItem
 	data       []byte
 	idx        int64
 	lastTypeId int
 }
 
-func NewDecoder(store ObjectStore, data []byte) *Decoder {
+func NewDecoder(store ObjectStore, pool *MapPool, data []byte) *Decoder {
 	return &Decoder{
 		store: store,
+		pool:  pool,
 		data:  data,
 	}
 }
 
-func (j *Decoder) Decode() (interface{}, error) {
+func (j *Decoder) Decode() (interface{}, []*MapItem, error) {
 	j.idx = 0
 	j.lastTypeId = JT_INVALID
-	return j.decodeAny()
+	i, err := j.decodeAny()
+	return i, j.checked, err
 }
 
 func (j *Decoder) skipWhitespace() {
@@ -70,7 +74,9 @@ func (j *Decoder) decodeAny() (interface{}, error) {
 		case '[':
 			return j.decodeArray()
 		case '{':
-			return j.decodeObject()
+			newObj := j.pool.Checkout()
+			j.checked = append(j.checked, newObj)
+			return j.decodeObject(newObj.m)
 		case 't':
 			return j.decodeTrue()
 		case 'f':
@@ -87,8 +93,9 @@ func (j *Decoder) decodeAny() (interface{}, error) {
 	return nil, errors.New("Expected object or value")
 }
 
-func (j *Decoder) decodeObject() (interface{}, error) {
-	newObj, err := j.store.NewObject()
+func (j *Decoder) decodeObject(newObj map[string]interface{}) (interface{}, error) {
+	var err error
+	/*newObj, err := j.store.NewObject()*/
 	if err != nil {
 		return nil, err
 	}
@@ -100,6 +107,7 @@ func (j *Decoder) decodeObject() (interface{}, error) {
 
 		if j.data[j.idx] == '}' {
 			j.idx++
+			/*return j.mapObj, nil*/
 			return newObj, nil
 		}
 
@@ -128,6 +136,7 @@ func (j *Decoder) decodeObject() (interface{}, error) {
 			return nil, err
 		}
 
+		/*err = j.store.ObjectAddKey(j.mapObj, itemName, itemValue)*/
 		err = j.store.ObjectAddKey(newObj, itemName, itemValue)
 		if err != nil {
 			return nil, err
@@ -139,6 +148,7 @@ func (j *Decoder) decodeObject() (interface{}, error) {
 		j.idx++
 		switch nextChar {
 		case '}':
+			/*return j.mapObj, nil*/
 			return newObj, nil
 		case ',':
 			continue
@@ -205,7 +215,7 @@ const (
 	SS_ESC
 )
 
-func (j *Decoder) decodeString() (interface{}, error) {
+func (j *Decoder) decodeString() (string, error) {
 	var c byte
 	var escCount int
 
@@ -241,7 +251,7 @@ func (j *Decoder) decodeString() (interface{}, error) {
 					}
 					continue
 				}
-				return nil, errors.New(fmt.Sprintf("Unexpected character %c in \\u hexadecimal character escape", c))
+				return "", errors.New(fmt.Sprintf("Unexpected character %c in \\u hexadecimal character escape", c))
 			}
 			switch c {
 			case 'b', 'f', 'n', 'r', 't', '\\', '/', '"':
@@ -255,7 +265,7 @@ func (j *Decoder) decodeString() (interface{}, error) {
 		break
 	}
 
-	return nil, errors.New(fmt.Sprintf("Unexpected character %c when decoding string value", c))
+	return "", errors.New(fmt.Sprintf("Unexpected character %c when decoding string value", c))
 }
 
 func (j *Decoder) decodeNumeric() (interface{}, error) {
